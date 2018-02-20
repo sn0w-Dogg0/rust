@@ -71,14 +71,14 @@ fn main() {
 // END rustc.foo.CopyPropagation.after.mir
 // START rustc.bar.CopyPropagation.before.mir
 // bb0: {
-//     StorageLive(_3);
+//     ...
 //     _3 = _1;
 //     _2 = const dummy(move _3) -> bb1;
 // }
 // bb1: {
-//     StorageDead(_3);
+//     ...
 //     _1 = const 5u8;
-//     _0 = ();
+//     ...
 //     return;
 // }
 // END rustc.bar.CopyPropagation.before.mir
@@ -92,15 +92,16 @@ fn main() {
 //     ...
 //     _1 = const 5u8;
 //     ...
+//     return;
 // }
 // END rustc.bar.CopyPropagation.after.mir
 // START rustc.baz.CopyPropagation.before.mir
 // bb0: {
-//     StorageLive(_2);
+//     ...
 //     _2 = _1;
 //     _1 = move _2;
-//     StorageDead(_2);
-//     _0 = ();
+//     ...
+//     ...
 //     return;
 // }
 // END rustc.baz.CopyPropagation.before.mir
@@ -110,21 +111,20 @@ fn main() {
 //     _2 = _1;
 //     _1 = move _2;
 //     ...
+//     return;
 // }
 // END rustc.baz.CopyPropagation.after.mir
 // START rustc.arg_src.CopyPropagation.before.mir
 // bb0: {
-//       ...
-//       _3 = _1;
-//       _2 = move _3;
-//       ...
-//       _1 = const 123i32;
-//       ...
-//       _4 = _2;
-//       _0 = move _4;
-//       ...
-//       return;
-//   }
+//      ...
+//      _3 = _1;
+//      ...
+//      _1 = const 123i32;
+//      ...
+//      _0 = _3;
+//      ...
+//      return;
+//  }
 // END rustc.arg_src.CopyPropagation.before.mir
 // START rustc.arg_src.CopyPropagation.after.mir
 // bb0: {
@@ -133,7 +133,7 @@ fn main() {
 //     ...
 //     _1 = const 123i32;
 //     ...
-//     _0 = move _3;
+//     _0 = _3;
 //     ...
 //     return;
 // }
