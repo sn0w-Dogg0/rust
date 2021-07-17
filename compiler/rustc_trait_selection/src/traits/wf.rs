@@ -1,6 +1,7 @@
 use crate::infer::InferCtxt;
 use crate::opaque_types::required_region_bounds;
 use crate::traits;
+use rustc_data_structures::sync::Lrc;
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
 use rustc_hir::lang_items::LangItem;
@@ -9,7 +10,6 @@ use rustc_middle::ty::{self, ToPredicate, Ty, TyCtxt, TypeFoldable, WithConstnes
 use rustc_span::Span;
 
 use std::iter;
-use std::rc::Rc;
 /// Returns the set of obligations needed to make `arg` well-formed.
 /// If `arg` contains unresolved inference variables, this may include
 /// further WF obligations. However, if `arg` IS an unresolved
@@ -295,7 +295,7 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
             if let Some(parent_trait_ref) = obligation.predicate.to_opt_poly_trait_ref() {
                 let derived_cause = traits::DerivedObligationCause {
                     parent_trait_ref: parent_trait_ref.value,
-                    parent_code: Rc::new(obligation.cause.code.clone()),
+                    parent_code: Lrc::new(obligation.cause.code.clone()),
                 };
                 cause.make_mut().code =
                     traits::ObligationCauseCode::DerivedObligation(derived_cause);
@@ -430,7 +430,7 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
 
                 GenericArgKind::Const(constant) => {
                     match constant.val {
-                        ty::ConstKind::Unevaluated(def, substs, promoted) => {
+                        ty::ConstKind::Unevaluated(ty::Unevaluated { def, substs, promoted }) => {
                             assert!(promoted.is_none());
 
                             let obligations = self.nominal_obligations(def.did, substs);
@@ -692,11 +692,7 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
         let predicates = predicates.instantiate(self.infcx.tcx, substs);
         debug_assert_eq!(predicates.predicates.len(), origins.len());
 
-        predicates
-            .predicates
-            .into_iter()
-            .zip(predicates.spans.into_iter())
-            .zip(origins.into_iter().rev())
+        iter::zip(iter::zip(predicates.predicates, predicates.spans), origins.into_iter().rev())
             .map(|((pred, span), origin_def_id)| {
                 let cause = self.cause(traits::BindingObligation(origin_def_id, span));
                 traits::Obligation::with_depth(cause, self.recursion_depth, self.param_env, pred)
@@ -708,7 +704,7 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
     fn from_object_ty(
         &mut self,
         ty: Ty<'tcx>,
-        data: &'tcx ty::List<ty::Binder<ty::ExistentialPredicate<'tcx>>>,
+        data: &'tcx ty::List<ty::Binder<'tcx, ty::ExistentialPredicate<'tcx>>>,
         region: ty::Region<'tcx>,
     ) {
         // Imagine a type like this:
@@ -771,7 +767,7 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
 /// `infer::required_region_bounds`, see that for more information.
 pub fn object_region_bounds<'tcx>(
     tcx: TyCtxt<'tcx>,
-    existential_predicates: &'tcx ty::List<ty::Binder<ty::ExistentialPredicate<'tcx>>>,
+    existential_predicates: &'tcx ty::List<ty::Binder<'tcx, ty::ExistentialPredicate<'tcx>>>,
 ) -> Vec<ty::Region<'tcx>> {
     // Since we don't actually *know* the self type for an object,
     // this "open(err)" serves as a kind of dummy standin -- basically
